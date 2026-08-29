@@ -7,8 +7,6 @@ again.
 
 Little Stereo is named after the Song Little Stereo by the Swedish band Teddybears!
 
-![Little Stereo audio controls](docs/little-stereo-controls.png)
-
 ## What the screenshot shows
 
 1. **Reverse stereo** — Turn on **Reverse Stereo Channels** when your left and
@@ -23,6 +21,8 @@ Little Stereo is named after the Song Little Stereo by the Swedish band Teddybea
 
 Select an output to view or change its settings. When you return to that
 device, Little Stereo restores them automatically.
+
+![Little Stereo audio controls](docs/little-stereo-controls.png)
 
 ## Install
 
