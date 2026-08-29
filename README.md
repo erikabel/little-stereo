@@ -5,9 +5,11 @@ panel. Each output device keeps its own settings, so switching between
 speakers, headphones, and Bluetooth devices does not require setting them up
 again.
 
-Little Stereo is named after the Song Little Stereo by the Swedish band Teddybears!
+The name comes from the song *Little Stereo* by the Swedish band Teddybears.
 
-## Main functions
+![Little Stereo audio controls](docs/little-stereo-controls.png)
+
+## What the screenshot shows
 
 1. **Reverse stereo** — Turn on **Reverse Stereo Channels** when your left and
    right speakers are physically arranged the other way around. It also works
@@ -21,8 +23,6 @@ Little Stereo is named after the Song Little Stereo by the Swedish band Teddybea
 
 Select an output to view or change its settings. When you return to that
 device, Little Stereo restores them automatically.
-
-![Little Stereo audio controls](docs/little-stereo-controls.png)
 
 ## Install
 
