@@ -7,9 +7,9 @@ again.
 
 The name comes from the song *Little Stereo* by the Swedish band Teddybears.
 
-![Little Stereo audio controls](docs/little-stereo-controls.png)
+## Main functionality
 
-## What the screenshot shows
+![Little Stereo audio controls](docs/little-stereo-controls.png)
 
 1. **Reverse stereo** — Turn on **Reverse Stereo Channels** when your left and
    right speakers are physically arranged the other way around. It also works
