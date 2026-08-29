@@ -1,23 +1,30 @@
 # Little Stereo
 
-Little Stereo adds per-output stereo controls to Omarchy's audio panel. Reverse
-left and right channels for speakers that are physically arranged the other
-way around, adjust balance, and let Little Stereo remember both settings for
-each output device.
+Little Stereo adds stereo reversal and balance controls to Omarchy's audio
+panel. Each output device keeps its own settings, so switching between
+speakers, headphones, and Bluetooth devices does not require setting them up
+again.
+
+The name comes from the song *Little Stereo* by the Swedish band Teddybears.
 
 Little Stereo is named after the Song Little Stereo by the Swedish band Teddybears!
 
 ![Little Stereo audio controls](docs/little-stereo-controls.png)
 
-## Features
+## What the screenshot shows
 
-- Reverse stereo channels before audio reaches the selected output, including
-  Bluetooth devices.
-- Remember stereo reversal independently for every output.
-- Adjust balance against the audible left and right sides, even when stereo is
-  reversed.
-- Keep the selected master volume stable while changing balance.
-- Show compact reversal and balance indicators on affected outputs.
+1. **Reverse stereo** — Turn on **Reverse Stereo Channels** when your left and
+   right speakers are physically arranged the other way around. It also works
+   with Bluetooth outputs.
+2. **Balance** — Move the balance slider toward the audible left or right side.
+   The selected master volume stays stable, including when stereo is reversed.
+3. **Memory and status per output** — Little Stereo remembers reversal and
+   balance separately for every output device. Icons beside an output show its
+   saved state at a glance: the swap arrows indicate reversed channels and the
+   balance scales indicate an adjusted balance.
+
+Select an output to view or change its settings. When you return to that
+device, Little Stereo restores them automatically.
 
 ## Install
 
