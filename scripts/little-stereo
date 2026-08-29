@@ -211,6 +211,35 @@ apply_balance() {
   set_levels "$target" "$logical_left" "$logical_right"
 }
 
+# Balance is written into the sink's own per-channel volumes, so forgetting it
+# is not the same as undoing it. Flatten every channel onto the master level --
+# the loudest one, since balance only ever attenuates the quiet side -- and the
+# output is left centred at the volume the user last chose.
+flatten_sink() {
+  local sink="$1" target level
+  target="$(volume_sink "$sink")"
+  (( $(channel_count "$target") > 0 )) || return 0
+  level="$(current_level "$sink")"
+  [[ -n $level ]] || return 0
+  set_levels "$target" "$level"
+}
+
+# Cleanup deletes the saved balances, and apply_balance declines to rebuild what
+# it cannot read -- so anything still imposed on a live output has to come off
+# here, while the file naming those outputs is still there to read. Outputs that
+# are not currently connected are skipped: pactl cannot set a sink that is not
+# there.
+reset_balances() {
+  local sink balance
+  [[ -f $balances ]] || return 0
+  while IFS=$'\t' read -r sink balance; do
+    [[ -n ${sink:-} ]] || continue
+    [[ ${balance:-0} != 0 ]] || continue
+    valid_sink "$sink" || continue
+    flatten_sink "$sink"
+  done < "$balances"
+}
+
 render_rules() {
   local temporary sink rule rules=""
   mkdir -p "$wireplumber_dir"
@@ -276,7 +305,7 @@ wait_for_stable_graph() {
 }
 
 reload_audio_safely() {
-  local sink="$1"
+  local sink="$1" mode="${2:-}"
 
   # Everything below runs with the bar already killed, and any step of it can
   # fail: wireplumber may refuse to restart, the sink may never come back. Under
@@ -293,14 +322,25 @@ reload_audio_safely() {
   systemctl --user restart wireplumber.service
   restore_sink "$sink"
   wait_for_stable_graph
+
+  # WirePlumber restores each node's saved per-channel volumes as it rebuilds
+  # the graph, and its copy of them can be older than the flatten cleanup() just
+  # did -- state is written on a timer, and the restart follows immediately.
+  # Levelling once more, after the graph has settled, is what the user hears.
+  if [[ $mode == flatten ]]; then flatten_sink "$sink"; fi
 }
 
 cleanup() {
-  local sink
+  local sink mode=""
   sink="$(current_sink)"
+  # Only level the output again after the restart if this plugin is the reason
+  # it is skewed. Removing an install that never used balance should leave the
+  # volumes exactly as they were found.
+  if [[ "$(saved_balance "$sink")" != 0 ]]; then mode="flatten"; fi
+  reset_balances
   rm -f "$preferences" "$balances" "$balance_levels" "$names" "$rule_file"
   systemd-run --user --collect --quiet --property=Type=exec \
-    "$script_path" reload "$sink"
+    "$script_path" reload "$sink" "$mode"
 }
 
 case "${1:-status}" in
@@ -383,8 +423,8 @@ case "${1:-status}" in
     render_rules
     ;;
   reload)
-    [[ $# == 2 ]] || exit 2
-    reload_audio_safely "$2"
+    [[ $# -ge 2 && $# -le 3 ]] || exit 2
+    reload_audio_safely "$2" "${3:-}"
     ;;
   cleanup)
     cleanup

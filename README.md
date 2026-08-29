@@ -69,8 +69,11 @@ before removing the plugin:
 omarchy plugin remove io.github.erikabel.little-stereo
 ```
 
-The cleanup command restarts WirePlumber and the Omarchy shell so the normal
-audio path is restored immediately.
+Balance is held in the output's own per-channel volumes, so cleanup levels every
+output it skewed back to centre before forgetting the settings that say it did —
+otherwise the imbalance would outlive the plugin that caused it. It then removes
+the generated WirePlumber rule and restarts WirePlumber and the Omarchy shell, so
+the built-in widget comes back on the normal audio path immediately.
 
 ## Runtime requirements
 
