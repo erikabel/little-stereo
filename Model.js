@@ -57,6 +57,58 @@ function friendlyDeviceLabel(text) {
   return label
 }
 
+// Custom output names are counted in code points, not UTF-16 units, so an
+// emoji costs one character of the budget rather than two. Written by hand
+// instead of Array.from/spread so the same code runs in QML's engine and in
+// Node under test.
+function nameLength(text) {
+  var value = String(text || "")
+  var count = 0
+  for (var i = 0; i < value.length; i++) {
+    var code = value.charCodeAt(i)
+    if (code >= 0xD800 && code <= 0xDBFF && i + 1 < value.length) {
+      var next = value.charCodeAt(i + 1)
+      if (next >= 0xDC00 && next <= 0xDFFF) i++
+    }
+    count++
+  }
+  return count
+}
+
+function truncateName(text, limit) {
+  var value = String(text || "")
+  var max = Number(limit) > 0 ? Number(limit) : 0
+  var count = 0
+  for (var i = 0; i < value.length; i++) {
+    if (count === max) return value.slice(0, i)
+    var code = value.charCodeAt(i)
+    if (code >= 0xD800 && code <= 0xDBFF && i + 1 < value.length) {
+      var next = value.charCodeAt(i + 1)
+      if (next >= 0xDC00 && next <= 0xDFFF) i++
+    }
+    count++
+  }
+  return value
+}
+
+// Tab and newline are the record separators in the saved file, so a name may
+// never contain them. Other control characters would render as boxes.
+function sanitizeName(text, limit) {
+  var value = String(text === undefined || text === null ? "" : text)
+  value = value.replace(/[\u0000-\u001f\u007f]/g, " ")
+  value = value.replace(/\s+/g, " ").trim()
+  return truncateName(value, limit)
+}
+
+// A name the user typed wins over anything detected from the device.
+function outputName(node, names, fallback) {
+  var key = node && node.name ? String(node.name) : ""
+  var custom = key && names ? names[key] : ""
+  custom = custom === undefined || custom === null ? "" : String(custom).trim()
+  if (custom) return custom
+  return fallback === undefined ? nodeLabel(node) : fallback
+}
+
 function nodeProps(node) {
   return node && node.ready && node.properties ? node.properties : {}
 }
@@ -242,6 +294,10 @@ if (typeof module !== "undefined") {
     parseSinkAvailability: parseSinkAvailability,
     friendlyDeviceLabel: friendlyDeviceLabel,
     nodeProps: nodeProps,
+    nameLength: nameLength,
+    truncateName: truncateName,
+    sanitizeName: sanitizeName,
+    outputName: outputName,
     nodeLabel: nodeLabel,
     isHeadphones: isHeadphones,
     sinkGlyph: sinkGlyph,

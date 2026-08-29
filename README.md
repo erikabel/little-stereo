@@ -7,6 +7,10 @@ again.
 
 The name comes from the song *Little Stereo* by the Swedish band Teddybears.
 
+Renaming outputs snuck in as well. It has nothing to do with stereo, but nobody
+has ever looked at a list of speakers and thought *ah yes, `U32R59x`*, so that
+itch got scratched too.
+
 ## Main functionality
 
 1. **Reverse stereo** — Turn on **Reverse Stereo Channels** when your left and
@@ -24,6 +28,22 @@ Select an output to view or change its settings. When you return to that
 device, Little Stereo restores them automatically.
 
 ![Little Stereo audio controls](docs/little-stereo-controls.png)
+
+## Extra feature
+
+Nothing to do with stereo, and no apology offered.
+
+**Rename an output** — Hover an output and a pen appears on the row. Click it,
+or press `r`, and the name becomes editable. Enter saves, Esc cancels, and
+submitting an empty field goes back to the name the device reports for itself.
+Names are capped at 24 characters, and an emoji counts as one of them, so
+`U32R59x` can become `32' Screen`, or `Loft 🎧` if the mood takes you.
+
+Hovering the name or the icon of a renamed output shows what it was originally
+called, so a screen full of nicknames can still be traced back to real hardware.
+
+Names are remembered per output like everything else here, and the cleanup
+command below removes them along with the rest.
 
 ## Install
 

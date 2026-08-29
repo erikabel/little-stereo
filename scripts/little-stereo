@@ -9,6 +9,7 @@ preferences_dir="$config_home/omarchy/audio"
 preferences="$preferences_dir/swapped-output-devices"
 balances="$preferences_dir/output-balances"
 balance_levels="$preferences_dir/output-balance-levels"
+names="$preferences_dir/output-names"
 wireplumber_dir="$config_home/wireplumber/wireplumber.conf.d"
 rule_file="$wireplumber_dir/90-channel-swap.conf"
 
@@ -33,6 +34,29 @@ save_preference() {
   fi
   [[ $enabled == true ]] && printf '%s\n' "$sink" >> "$temporary"
   mv "$temporary" "$preferences"
+}
+
+# Custom output names. Stored like the other per-output settings: one TSV row
+# keyed by the sink name, so a renamed output keeps its name across reboots and
+# reconnects. The label is written verbatim in UTF-8 -- emoji included -- and
+# only tab and newline are forbidden, because they separate the records.
+saved_name() {
+  local sink="$1"
+  [[ -f $names ]] || return 0
+  awk -F '\t' -v sink="$sink" '$1 == sink {print $2; exit}' "$names"
+}
+
+save_name() {
+  local sink="$1" label="$2" temporary
+  mkdir -p "$preferences_dir"
+  temporary="$(mktemp "$preferences_dir/.output-names.XXXXXX")"
+  if [[ -f $names ]]; then
+    awk -F '\t' -v sink="$sink" '$1 != sink' "$names" > "$temporary"
+  fi
+  # An empty label is how a rename is undone: drop the row and fall back to the
+  # name the device reports for itself.
+  [[ -n $label ]] && printf '%s\t%s\n' "$sink" "$label" >> "$temporary"
+  mv "$temporary" "$names"
 }
 
 saved_balance() {
@@ -274,7 +298,7 @@ reload_audio_safely() {
 cleanup() {
   local sink
   sink="$(current_sink)"
-  rm -f "$preferences" "$balances" "$balance_levels" "$rule_file"
+  rm -f "$preferences" "$balances" "$balance_levels" "$names" "$rule_file"
   systemd-run --user --collect --quiet --property=Type=exec \
     "$script_path" reload "$sink"
 }
@@ -282,6 +306,26 @@ cleanup() {
 case "${1:-status}" in
   list)
     [[ -f $preferences ]] && sed '/^[[:space:]]*$/d' "$preferences" || true
+    ;;
+  names-list)
+    [[ -f $names ]] && sed '/^[[:space:]]*$/d' "$names" || true
+    ;;
+  name-status)
+    saved_name "${2:-$(current_sink)}"
+    ;;
+  name-set)
+    [[ $# -ge 2 ]] || exit 2
+    sink="$2"
+    valid_sink "$sink" || exit 2
+    # The panel already trims and length-limits. This is only a backstop against
+    # anything else calling the helper, so it rejects rather than truncates: a
+    # byte-wise cut would slice a multi-byte character in half and write broken
+    # UTF-8 into the file.
+    label="$(printf '%s' "${3:-}" | tr -d '\t\n\r')"
+    # Measured in bytes via wc, not ${#label}: that counts characters under a
+    # UTF-8 locale and bytes under LC_ALL=C, and this runs in both.
+    (( $(printf '%s' "$label" | wc -c) <= 200 )) || exit 2
+    save_name "$sink" "$label"
     ;;
   balance-list)
     [[ -f $balances ]] && awk -F '\t' '$2 != 0 {print $1 "\t" $2}' "$balances" || true
@@ -346,7 +390,7 @@ case "${1:-status}" in
     cleanup
     ;;
   *)
-    echo "Usage: ${0##*/} [list|status|toggle|apply|reload|restore|cleanup|balance-status|balance|balance-level|select]" >&2
+    echo "Usage: ${0##*/} [list|status|toggle|apply|reload|restore|cleanup|balance-status|balance|balance-level|select|names-list|name-status|name-set]" >&2
     exit 2
     ;;
 esac

@@ -198,6 +198,49 @@ Panel {
     proc.running = true
   }
   property var outputBalances: ({})
+  property var outputNames: ({})
+
+  // Renaming state. Holds the node.name being edited, "" when not editing --
+  // a name rather than an index so a list refresh underneath the editor cannot
+  // silently move the edit onto a different output.
+  property string renamingSink: ""
+  readonly property int maxOutputNameLength: 24
+
+  function outputLabel(node) {
+    return Model.outputName(node, outputNames, nodeLabel(node))
+  }
+
+  function outputHasCustomName(node) {
+    var key = node && node.name ? String(node.name) : ""
+    return !!(key && outputNames[key])
+  }
+
+  function beginRename(node) {
+    if (!node || !node.name) return
+    renamingSink = String(node.name)
+  }
+
+  function commitRename(node, text) {
+    if (!node || !node.name) { renamingSink = ""; return }
+    var clean = Model.sanitizeName(text, maxOutputNameLength)
+    // Store optimistically so the row updates the moment you hit Enter,
+    // instead of waiting for the helper and the next list refresh.
+    var next = {}
+    for (var k in outputNames) next[k] = outputNames[k]
+    if (clean) next[String(node.name)] = clean
+    else delete next[String(node.name)]
+    outputNames = next
+    renamingSink = ""
+    Quickshell.execDetached([root.helperPath, "name-set", String(node.name), clean])
+  }
+
+  function cancelRename() {
+    renamingSink = ""
+  }
+
+  function refreshOutputNames() {
+    if (!namesListProc.running) namesListProc.running = true
+  }
 
   function outputChannelsSwapped(node) {
     return !!node && swappedOutputs.indexOf(String(node.name || "")) >= 0
@@ -386,6 +429,7 @@ Panel {
   onOpenedChanged: {
     if (opened) {
       refreshDisplayAudioModels()
+      refreshOutputNames()
       refreshChannelSwap()
       refreshOutputBalance(true)
       focusSection = "output"
@@ -393,6 +437,7 @@ Panel {
       cursorActive = false
       Qt.callLater(resetScroll)
     } else {
+      cancelRename()
       clearDisplayAudioModels()
     }
   }
@@ -721,6 +766,27 @@ Panel {
   }
 
   Process {
+    id: namesListProc
+    command: [root.helperPath, "names-list"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var values = {}
+        var raw = String(text)
+        // No trim() on the whole blob: a name may legitimately end in a space
+        // once, and only the row separator matters here.
+        var rows = raw.split("\n")
+        for (var i = 0; i < rows.length; i++) {
+          if (rows[i] === "") continue
+          var fields = rows[i].split("\t")
+          if (fields.length >= 2 && fields[0] !== "") values[fields[0]] = fields[1]
+        }
+        root.outputNames = values
+      }
+    }
+  }
+
+  Process {
     id: balanceListProc
     command: [root.helperPath, "balance-list"]
     stdout: StdioCollector {
@@ -892,6 +958,9 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
+      // While a name is being edited the field owns every key, including the
+      // j/k/m/Enter this panel would otherwise consume.
+      blocked: root.renamingSink !== ""
       onMoveRequested: function(dx, dy) {
         if (!root.cursorActive) { root.cursorActive = true; return }
         if (dy !== 0) root.moveCursor(dy)
@@ -903,6 +972,13 @@ Panel {
       onTextKey: function(t) {
         // 'm' mutes whatever the cursor is on: focused section's slider
         // for output/input, the focused stream for streams.
+        if (t === "r" || t === "R") {
+          if (root.cursorActive && root.focusSection === "output"
+              && root.selectedIndex >= 0 && root.selectedIndex < root.displayAudioSinks.length) {
+            root.beginRename(root.displayAudioSinks[root.selectedIndex])
+          }
+          return
+        }
         if (t === "m" || t === "M") {
           if (!root.cursorActive) return
           if (root.focusSection === "streams" && root.selectedIndex >= 0
@@ -1380,6 +1456,8 @@ Panel {
 
     readonly property bool isActive: root.sink && node && root.sink.id === node.id
     readonly property bool channelsSwapped: root.outputChannelsSwapped(node)
+    readonly property bool hasCustomName: root.outputHasCustomName(node)
+    readonly property bool editing: root.renamingSink !== "" && root.renamingSink === String(node && node.name || "")
     readonly property bool hasBalance: root.outputHasBalance(node)
     hasCursor: root.cursorActive && root.focusSection === "output" && root.selectedIndex === rowIndex
     onHasCursorChanged: if (hasCursor) root.ensureCursorVisible(sinkRow)
@@ -1407,18 +1485,115 @@ Panel {
         width: Style.space(22)
         horizontalAlignment: Text.AlignHCenter
         anchors.verticalCenter: parent.verticalCenter
+
+        // HoverHandler, not a MouseArea: a child MouseArea would take the hover
+        // away from the row's own, and with it the cursor highlight and the pen.
+        HoverHandler { id: sinkGlyphHover }
+
+        PanelToolTip {
+          visible: sinkGlyphHover.hovered && sinkRow.hasCustomName && !sinkRow.editing
+          text: root.nodeLabel(sinkRow.node)
+          fontFamily: root.bar.fontFamily
+        }
       }
 
-      Text {
-        text: root.nodeLabel(sinkRow.node)
-        color: root.bar.foreground
-        font.family: root.bar.fontFamily
-        font.pixelSize: Style.font.body
-        font.bold: sinkRow.isActive
-        elide: Text.ElideRight
-        width: parent.width - Style.space(22) - Style.space(8)
+      Item {
+        id: sinkLabelSlot
+        width: parent.width - Style.space(22) - sinkInner.spacing
+          - (renameButton.width + sinkInner.spacing)
           - (outputBadges.visible ? outputBadges.implicitWidth + sinkInner.spacing : 0)
+        implicitHeight: Math.max(sinkLabelText.implicitHeight, nameField.implicitHeight)
+        height: implicitHeight
         anchors.verticalCenter: parent.verticalCenter
+
+        Text {
+          id: sinkLabelText
+          visible: !sinkRow.editing
+          text: root.outputLabel(sinkRow.node)
+          color: root.bar.foreground
+          font.family: root.bar.fontFamily
+          font.pixelSize: Style.font.body
+          font.bold: sinkRow.isActive
+          elide: Text.ElideRight
+          width: parent.width
+          anchors.verticalCenter: parent.verticalCenter
+        }
+
+        HoverHandler { id: sinkLabelHover }
+
+        PanelToolTip {
+          visible: sinkLabelHover.hovered && sinkRow.hasCustomName && !sinkRow.editing
+          text: root.nodeLabel(sinkRow.node)
+          fontFamily: root.bar.fontFamily
+        }
+
+        TextField {
+          id: nameField
+          visible: sinkRow.editing
+          width: parent.width
+          anchors.verticalCenter: parent.verticalCenter
+          foreground: root.bar.foreground
+          font.family: root.bar.fontFamily
+          font.pixelSize: Style.font.body
+          horizontalPadding: Style.space(6)
+          verticalPadding: Style.space(2)
+          // Empty for an output that has never been renamed, with the detected
+          // name as the placeholder: that way Enter on an untouched field is a
+          // no-op rather than freezing today's detected name as a custom one.
+          placeholderText: root.nodeLabel(sinkRow.node)
+
+          onTextChanged: {
+            var capped = Model.truncateName(text, root.maxOutputNameLength)
+            if (capped !== text) text = capped
+          }
+          onAccepted: root.commitRename(sinkRow.node, text)
+          Keys.onEscapePressed: root.cancelRename()
+
+          // Set imperatively rather than bound: a binding on `text` would be
+          // clobbered the moment the user typed into it.
+          onVisibleChanged: if (visible) {
+            text = root.outputHasCustomName(sinkRow.node) ? root.outputLabel(sinkRow.node) : ""
+            Qt.callLater(function() { nameField.forceActiveFocus(); nameField.selectAll() })
+          }
+        }
+      }
+
+      Item {
+        id: renameButton
+        z: 2
+        // Always occupies its slot and fades in, so hovering a row does not
+        // reflow the label next to it.
+        opacity: (sinkRow.hasCursor || sinkRow.editing) ? 1 : 0
+        implicitWidth: Style.space(22)
+        width: implicitWidth
+        height: Math.max(renameIcon.implicitHeight, Style.space(22))
+        anchors.verticalCenter: parent.verticalCenter
+        Behavior on opacity { NumberAnimation { duration: 90 } }
+
+        Text {
+          id: renameIcon
+          text: "󰏫"
+          color: root.bar.foreground
+          font.family: root.bar.fontFamily
+          font.pixelSize: Style.font.body
+          opacity: renameHover.containsMouse ? 1.0 : 0.7
+          anchors.centerIn: parent
+        }
+
+        MouseArea {
+          id: renameHover
+          anchors.fill: parent
+          enabled: renameButton.opacity > 0
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: sinkRow.editing ? root.cancelRename() : root.beginRename(sinkRow.node)
+        }
+
+        PanelToolTip {
+          visible: renameHover.containsMouse && !sinkRow.editing
+          text: "Give this output a custom name"
+          fontFamily: root.bar.fontFamily
+        }
       }
 
       Row {
@@ -1487,7 +1662,7 @@ Panel {
         root.focusSection = "output"
         root.selectedIndex = sinkRow.rowIndex
       }
-      onClicked: root.setDefaultSink(sinkRow.node)
+      onClicked: if (!sinkRow.editing) root.setDefaultSink(sinkRow.node)
     }
   }
 
