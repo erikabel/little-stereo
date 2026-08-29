@@ -5,6 +5,8 @@ left and right channels for speakers that are physically arranged the other
 way around, adjust balance, and let Little Stereo remember both settings for
 each output device.
 
+Little Stereo is named after the Song Little Stereo by the Swedish band Teddybears!
+
 ![Little Stereo audio controls](docs/little-stereo-controls.png)
 
 ## Features
