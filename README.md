@@ -33,11 +33,14 @@ device, Little Stereo restores them automatically.
 
 Nothing to do with stereo, and no apology offered.
 
-**Rename an output** — Hover an output and a pen appears on the row. Click it,
-or press `r`, and the name becomes editable. Enter saves, Esc cancels, and
-submitting an empty field goes back to the name the device reports for itself.
-Names are capped at 24 characters, and an emoji counts as one of them, so
-`U32R59x` can become `32' Screen`, or `Loft 🎧` if the mood takes you.
+4. **Rename an output** — Hover an output and a pen appears on the row. Click
+   it, or press `r`, and the name becomes editable. Enter saves, Esc cancels,
+   and submitting an empty field goes back to the name the device reports for
+   itself. Names are capped at 24 characters, and an emoji counts as one of
+   them, so `U32R59x` can become `Samsung Screen`, or `Loft 🎧` if the mood
+   takes you.
+
+![Renaming an output](docs/little-stereo-rename.png)
 
 Hovering the name or the icon of a renamed output shows what it was originally
 called, so a screen full of nicknames can still be traced back to real hardware.
