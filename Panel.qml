@@ -1020,6 +1020,7 @@ Panel {
             Text {
               id: heroIcon
               text: root.outputIcon()
+              textFormat: Text.PlainText
               color: root.bar.foreground
               font.family: root.bar.fontFamily
               font.pixelSize: Style.font.display
@@ -1041,7 +1042,7 @@ Panel {
               onHovered: function(on) { if (on) root.setHeaderCursor() }
               onToggled: root.toggleAllMuted()
 
-              PanelToolTip {
+              PlainToolTip {
                 visible: powerSwitch.containsMouse
                 text: root.toggleHint
                 fontFamily: root.bar.fontFamily
@@ -1059,6 +1060,7 @@ Panel {
 
               Text {
                 text: "Audio"
+                textFormat: Text.PlainText
                 color: root.bar.foreground
                 font.family: root.bar.fontFamily
                 font.pixelSize: Style.font.title
@@ -1073,6 +1075,7 @@ Panel {
                   outputSlider.dragging ? outputSlider.liveValue : root.outputVolume,
                   root.outputMuted
                 ).toUpperCase()
+                textFormat: Text.PlainText
                 color: Qt.darker(root.bar.foreground, 1.4)
                 font.family: root.bar.fontFamily
                 font.pixelSize: Style.font.caption
@@ -1109,6 +1112,7 @@ Panel {
               Text {
                 id: outputPercent
                 text: Math.round((outputSlider.dragging ? outputSlider.liveValue : root.outputVolume) * 100) + "%"
+                textFormat: Text.PlainText
                 color: Qt.darker(root.bar.foreground, 1.4)
                 font.family: root.bar.fontFamily
                 font.pixelSize: Style.font.caption
@@ -1188,6 +1192,7 @@ Panel {
 
                 Text {
                   text: "Reverse Stereo Channels"
+                  textFormat: Text.PlainText
                   color: root.bar.foreground
                   font.family: root.bar.fontFamily
                   font.pixelSize: Style.font.body
@@ -1200,6 +1205,7 @@ Panel {
                   visible: root.channelsSwapped || !root.outputIsStereo
                   text: root.outputIsStereo ? "Remembered for this output"
                                             : "This output is not stereo"
+                  textFormat: Text.PlainText
                   color: Qt.darker(root.bar.foreground, 1.4)
                   font.family: root.bar.fontFamily
                   font.pixelSize: Style.font.caption
@@ -1218,7 +1224,7 @@ Panel {
                 anchors.verticalCenter: parent.verticalCenter
                 onToggled: root.toggleChannelSwap()
 
-                PanelToolTip {
+                PlainToolTip {
                   visible: channelSwapSwitch.containsMouse
                   text: root.channelsSwapped ? "Restore normal left/right channels" : "Swap left and right channels"
                   fontFamily: root.bar.fontFamily
@@ -1237,6 +1243,7 @@ Panel {
                 Text {
                   id: balanceTitle
                   text: "Balance"
+                  textFormat: Text.PlainText
                   color: root.bar.foreground
                   font.family: root.bar.fontFamily
                   font.pixelSize: Style.font.body
@@ -1254,6 +1261,7 @@ Panel {
                       : root.outputBalance > 0.01
                         ? Math.round(root.outputBalance * 100) + "% right"
                         : "Centered"
+                  textFormat: Text.PlainText
                   color: Qt.darker(root.bar.foreground, 1.4)
                   font.family: root.bar.fontFamily
                   font.pixelSize: Style.font.caption
@@ -1269,6 +1277,7 @@ Panel {
                 Text {
                   id: balanceLeftLabel
                   text: "L"
+                  textFormat: Text.PlainText
                   color: Qt.darker(root.bar.foreground, 1.4)
                   font.family: root.bar.fontFamily
                   font.pixelSize: Style.font.caption
@@ -1294,6 +1303,7 @@ Panel {
                 Text {
                   id: balanceRightLabel
                   text: "R"
+                  textFormat: Text.PlainText
                   color: Qt.darker(root.bar.foreground, 1.4)
                   font.family: root.bar.fontFamily
                   font.pixelSize: Style.font.caption
@@ -1330,6 +1340,7 @@ Panel {
               Text {
                 id: microphonePercent
                 text: Math.round((inputSlider.dragging ? inputSlider.liveValue : root.inputVolume) * 100) + "%"
+                textFormat: Text.PlainText
                 color: Qt.darker(root.bar.foreground, 1.4)
                 font.family: root.bar.fontFamily
                 font.pixelSize: Style.font.caption
@@ -1446,6 +1457,34 @@ Panel {
 
   // ---- Reusable inline components ----
 
+  // PanelToolTip draws its label in a Text that sets no textFormat, so Qt's
+  // AutoText promotes markup in that label to rich text. Several of the labels
+  // shown here are authored elsewhere -- by the application behind a stream, or
+  // by the device itself -- and must not be read as markup by a shell process
+  // that outlives them.
+  //
+  // PanelToolTip lives in the shell kit, so the only reach is to re-declare its
+  // contentItem with the format pinned. Setting it from Component.onCompleted
+  // does not work: a Popup's contentItem is deferred, and neither that handler
+  // nor onContentItemChanged has run by the time it exists. The body below is
+  // Ui/PanelToolTip.qml's own contentItem plus textFormat, so it has to be
+  // re-checked if that file's styling changes.
+  component PlainToolTip: PanelToolTip {
+    id: plainToolTip
+
+    contentItem: Text {
+      text: plainToolTip.text
+      textFormat: Text.PlainText
+      color: plainToolTip.panelForeground
+      font.family: plainToolTip.fontFamily
+      font.pixelSize: plainToolTip.fontSize
+      leftPadding: Border.left(plainToolTip.panelBorderSpec) + Style.spacing.controlPaddingX
+      rightPadding: Border.right(plainToolTip.panelBorderSpec) + Style.spacing.controlPaddingX
+      topPadding: Border.top(plainToolTip.panelBorderSpec) + Style.spacing.controlPaddingY
+      bottomPadding: Border.bottom(plainToolTip.panelBorderSpec) + Style.spacing.controlPaddingY
+    }
+  }
+
   // Output device row — cursor target inside the "output" section. Mouse
   // hover updates the panel cursor at the root; visuals come entirely
   // from hasCursor/current via CursorSurface, never from containsMouse.
@@ -1479,6 +1518,7 @@ Panel {
 
       Text {
         text: root.sinkGlyph(sinkRow.node)
+        textFormat: Text.PlainText
         color: root.bar.foreground
         font.family: root.bar.fontFamily
         font.pixelSize: Style.font.title
@@ -1490,7 +1530,7 @@ Panel {
         // away from the row's own, and with it the cursor highlight and the pen.
         HoverHandler { id: sinkGlyphHover }
 
-        PanelToolTip {
+        PlainToolTip {
           visible: sinkGlyphHover.hovered && sinkRow.hasCustomName && !sinkRow.editing
           text: root.nodeLabel(sinkRow.node)
           fontFamily: root.bar.fontFamily
@@ -1510,6 +1550,7 @@ Panel {
           id: sinkLabelText
           visible: !sinkRow.editing
           text: root.outputLabel(sinkRow.node)
+          textFormat: Text.PlainText
           color: root.bar.foreground
           font.family: root.bar.fontFamily
           font.pixelSize: Style.font.body
@@ -1521,7 +1562,7 @@ Panel {
 
         HoverHandler { id: sinkLabelHover }
 
-        PanelToolTip {
+        PlainToolTip {
           visible: sinkLabelHover.hovered && sinkRow.hasCustomName && !sinkRow.editing
           text: root.nodeLabel(sinkRow.node)
           fontFamily: root.bar.fontFamily
@@ -1538,9 +1579,10 @@ Panel {
           horizontalPadding: Style.space(6)
           verticalPadding: Style.space(2)
           // Empty for an output that has never been renamed, with the detected
-          // name as the placeholder: that way Enter on an untouched field is a
-          // no-op rather than freezing today's detected name as a custom one.
-          placeholderText: root.nodeLabel(sinkRow.node)
+          // name shown behind it by detectedNamePlaceholder below: that way
+          // Enter on an untouched field is a no-op rather than freezing today's
+          // detected name as a custom one. The field's own placeholderText is
+          // deliberately left unset -- see that item for why.
 
           onTextChanged: {
             var capped = Model.truncateName(text, root.maxOutputNameLength)
@@ -1555,6 +1597,29 @@ Panel {
             text = root.outputHasCustomName(sinkRow.node) ? root.outputLabel(sinkRow.node) : ""
             Qt.callLater(function() { nameField.forceActiveFocus(); nameField.selectAll() })
           }
+        }
+
+        // The detected name is the device's own string, and TextField draws
+        // placeholderText in an internal Text that defaults to AutoText. That
+        // item is not exposed, and it is created too late for either
+        // Component.onCompleted or a children scan to reach -- both were tried.
+        // So the field carries no placeholder and this draws one, in plain
+        // text, using the field's own public metrics so it lands where the
+        // real placeholder would have.
+        Text {
+          id: detectedNamePlaceholder
+          anchors.fill: nameField
+          visible: nameField.visible && !nameField.text && !nameField.preeditText
+          text: root.nodeLabel(sinkRow.node)
+          textFormat: Text.PlainText
+          color: nameField.placeholderTextColor
+          font: nameField.font
+          elide: Text.ElideRight
+          leftPadding: nameField.leftPadding
+          rightPadding: nameField.rightPadding
+          topPadding: nameField.topPadding
+          bottomPadding: nameField.bottomPadding
+          verticalAlignment: Text.AlignVCenter
         }
       }
 
@@ -1573,6 +1638,7 @@ Panel {
         Text {
           id: renameIcon
           text: "󰏫"
+          textFormat: Text.PlainText
           color: root.bar.foreground
           font.family: root.bar.fontFamily
           font.pixelSize: Style.font.body
@@ -1589,7 +1655,7 @@ Panel {
           onClicked: sinkRow.editing ? root.cancelRename() : root.beginRename(sinkRow.node)
         }
 
-        PanelToolTip {
+        PlainToolTip {
           visible: renameHover.containsMouse && !sinkRow.editing
           text: "Give this output a custom name"
           fontFamily: root.bar.fontFamily
@@ -1607,7 +1673,7 @@ Panel {
           id: outputBadgesHover
         }
 
-        PanelToolTip {
+        PlainToolTip {
           visible: outputBadgesHover.hovered
           text: root.outputStatusDescription(sinkRow.node)
           fontFamily: root.bar.fontFamily
@@ -1623,6 +1689,7 @@ Panel {
           Text {
             id: balanceBadgeIcon
             text: "󰗑"
+            textFormat: Text.PlainText
             color: root.bar.foreground
             font.family: root.bar.fontFamily
             font.pixelSize: Style.font.body
@@ -1642,6 +1709,7 @@ Panel {
           Text {
             id: swapBadgeIcon
             text: "󰓡"
+            textFormat: Text.PlainText
             color: root.bar.foreground
             font.family: root.bar.fontFamily
             font.pixelSize: Style.font.body
@@ -1692,6 +1760,7 @@ Panel {
 
       Text {
         text: root.sourceGlyph(sourceRow.node)
+        textFormat: Text.PlainText
         color: root.bar.foreground
         font.family: root.bar.fontFamily
         font.pixelSize: Style.font.title
@@ -1702,6 +1771,7 @@ Panel {
 
       Text {
         text: root.nodeLabel(sourceRow.node)
+        textFormat: Text.PlainText
         color: root.bar.foreground
         font.family: root.bar.fontFamily
         font.pixelSize: Style.font.body
@@ -1762,6 +1832,7 @@ Panel {
         Text {
           id: streamMuteIcon
           text: streamRow.streamMuted ? "󰝟" : "󰕾"
+          textFormat: Text.PlainText
           color: root.bar.foreground
           font.family: root.bar.fontFamily
           font.pixelSize: Style.font.title
@@ -1782,6 +1853,7 @@ Panel {
 
         Text {
           text: root.streamLabel(streamRow.node)
+          textFormat: Text.PlainText
           color: root.bar.foreground
           font.family: root.bar.fontFamily
           font.pixelSize: Style.font.body
@@ -1794,6 +1866,7 @@ Panel {
         Text {
           id: streamPct
           text: Math.round(streamRow.streamVolume * 100) + "%"
+          textFormat: Text.PlainText
           color: Qt.darker(root.bar.foreground, 1.5)
           font.family: root.bar.fontFamily
           font.pixelSize: Style.font.caption
