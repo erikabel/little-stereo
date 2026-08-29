@@ -5,14 +5,14 @@
   "version": "1.0.0",
   "author": "Erik Abelsson",
   "license": "MIT",
-  "description": "Per-output stereo reversal and balance controls for Omarchy audio.",
+  "description": "Stereo reversal, balance, and custom names, remembered for every audio output.",
   "kinds": ["bar-widget"],
   "entryPoints": {
     "barWidget": "Panel.qml"
   },
   "barWidget": {
     "displayName": "Little Stereo",
-    "description": "Audio controls with remembered stereo reversal and balance per output.",
+    "description": "Audio controls with stereo reversal, balance, and custom names per output.",
     "category": "Audio",
     "allowMultiple": false
   }
