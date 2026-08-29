@@ -216,6 +216,14 @@ Panel {
     return "Centered balance"
   }
 
+  function outputStatusDescription(node) {
+    if (!node) return ""
+    var details = []
+    if (outputChannelsSwapped(node)) details.push("Reversed stereo")
+    if (outputHasBalance(node)) details.push(outputBalanceDescription(node))
+    return details.join(" & ")
+  }
+
   onRawAudioSinksChanged: if (rawAudioSinks.length > 0) cachedAudioSinks = rawAudioSinks
   onRawAudioSourcesChanged: if (rawAudioSources.length > 0) cachedAudioSources = rawAudioSources
 
@@ -1420,6 +1428,16 @@ Panel {
         spacing: Style.space(5)
         anchors.verticalCenter: parent.verticalCenter
 
+        HoverHandler {
+          id: outputBadgesHover
+        }
+
+        PanelToolTip {
+          visible: outputBadgesHover.hovered
+          text: root.outputStatusDescription(sinkRow.node)
+          fontFamily: root.bar.fontFamily
+        }
+
         Item {
           visible: sinkRow.hasBalance
           implicitWidth: balanceBadgeIcon.implicitWidth + Style.space(8)
@@ -1437,18 +1455,6 @@ Panel {
             anchors.centerIn: parent
           }
 
-          MouseArea {
-            id: balanceBadgeHover
-            anchors.fill: parent
-            acceptedButtons: Qt.NoButton
-            hoverEnabled: true
-          }
-
-          PanelToolTip {
-            visible: balanceBadgeHover.containsMouse
-            text: root.outputBalanceDescription(sinkRow.node)
-            fontFamily: root.bar.fontFamily
-          }
         }
 
         Item {
@@ -1468,18 +1474,6 @@ Panel {
             anchors.centerIn: parent
           }
 
-          MouseArea {
-            id: swapBadgeHover
-            anchors.fill: parent
-            acceptedButtons: Qt.NoButton
-            hoverEnabled: true
-          }
-
-          PanelToolTip {
-            visible: swapBadgeHover.containsMouse
-            text: "Reversed stereo"
-            fontFamily: root.bar.fontFamily
-          }
         }
       }
     }
