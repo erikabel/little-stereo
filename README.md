@@ -78,13 +78,15 @@ the built-in widget comes back on the normal audio path immediately.
 ## Runtime requirements
 
 Little Stereo runs inside the Omarchy shell with the logged-in user's
-permissions. It uses Omarchy's existing audio helpers, PipeWire/PulseAudio's
-`pactl`, WirePlumber, and standard user-session tools (`systemctl --user`,
-`systemd-run --user`, `quickshell`, and `bluetoothctl` for Bluetooth outputs).
-It does not require `sudo`, root access, a separate Quickshell process, or a
-remote installer. Stereo reversal restarts the user's WirePlumber service and
-the Omarchy shell; cleanup removes only Little Stereo's saved files and its
-generated WirePlumber rule.
+permissions. It uses four of Omarchy's own audio helpers
+(`omarchy-audio-output-sink`, `omarchy-audio-output-set-default`,
+`omarchy-audio-input-set-default`, and `omarchy-audio-sink-availability`),
+PipeWire/PulseAudio's `pactl`, WirePlumber, and standard user-session tools
+(`systemctl --user`, `systemd-run --user`, `quickshell`, and `bluetoothctl`
+for Bluetooth outputs). It does not require `sudo`, root access, a separate
+Quickshell process, or a remote installer. Stereo reversal restarts the user's
+WirePlumber service and the Omarchy shell; cleanup removes only Little
+Stereo's saved files and its generated WirePlumber rule.
 
 Built and tested against Omarchy 4.0.0.alpha. Little Stereo is based on the
 built-in audio panel and declares `omarchy.clonedFrom` in its manifest to take
