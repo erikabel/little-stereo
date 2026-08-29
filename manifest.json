@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.erikabel.little-stereo",
+  "name": "Little Stereo",
+  "version": "1.0.0",
+  "author": "Erik Abelsson",
+  "license": "MIT",
+  "description": "Per-output stereo reversal and balance controls for Omarchy audio.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Little Stereo",
+    "description": "Audio controls with remembered stereo reversal and balance per output.",
+    "category": "Audio",
+    "allowMultiple": false
+  }
+}
