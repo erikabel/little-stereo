@@ -72,6 +72,17 @@ omarchy plugin enable omarchy.audio
 The cleanup command restarts WirePlumber and the Omarchy shell so the normal
 audio path is restored immediately.
 
+## Runtime requirements
+
+Little Stereo runs inside the Omarchy shell with the logged-in user's
+permissions. It uses Omarchy's existing audio helpers, PipeWire/PulseAudio's
+`pactl`, WirePlumber, and standard user-session tools (`systemctl --user`,
+`systemd-run --user`, `quickshell`, and `bluetoothctl` for Bluetooth outputs).
+It does not require `sudo`, root access, a separate Quickshell process, or a
+remote installer. Stereo reversal restarts the user's WirePlumber service and
+the Omarchy shell; cleanup removes only Little Stereo's saved files and its
+generated WirePlumber rule.
+
 ## How it works
 
 Settings are saved under `~/.config/omarchy/audio`. Stereo reversal is applied
