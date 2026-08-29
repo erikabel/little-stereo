@@ -27,7 +27,7 @@ itch got scratched too.
 Select an output to view or change its settings. When you return to that
 device, Little Stereo restores them automatically.
 
-![Little Stereo audio controls](docs/little-stereo-controls.png)
+![Little Stereo audio controls](preview.png)
 
 ## Extra feature
 
