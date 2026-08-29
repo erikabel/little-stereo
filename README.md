@@ -52,11 +52,12 @@ command below removes them along with the rest.
 
 ```bash
 omarchy plugin add https://github.com/erikabel/little-stereo --enable --yes
-omarchy plugin disable omarchy.audio
 ```
 
-Little Stereo replaces the built-in audio bar widget, so the built-in
-`omarchy.audio` widget should be disabled while Little Stereo is enabled.
+Little Stereo replaces the built-in audio widget rather than sitting beside it.
+Enabling it takes over `omarchy.audio`'s exact place in the bar, and disabling
+or removing it puts the built-in back where it was, so there is nothing to
+switch over by hand.
 
 ## Remove
 
@@ -66,7 +67,6 @@ before removing the plugin:
 ```bash
 ~/.config/omarchy/plugins/io.github.erikabel.little-stereo/scripts/little-stereo cleanup
 omarchy plugin remove io.github.erikabel.little-stereo
-omarchy plugin enable omarchy.audio
 ```
 
 The cleanup command restarts WirePlumber and the Omarchy shell so the normal
