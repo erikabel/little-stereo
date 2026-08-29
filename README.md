@@ -86,6 +86,11 @@ remote installer. Stereo reversal restarts the user's WirePlumber service and
 the Omarchy shell; cleanup removes only Little Stereo's saved files and its
 generated WirePlumber rule.
 
+Built and tested against Omarchy 4.0.0.alpha. Little Stereo is based on the
+built-in audio panel and declares `omarchy.clonedFrom` in its manifest to take
+that widget's place, so a shell release that reworks either one may need a
+matching update here.
+
 ## How it works
 
 Settings are saved under `~/.config/omarchy/audio`. Stereo reversal is applied
