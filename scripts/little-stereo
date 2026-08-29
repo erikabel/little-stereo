@@ -227,6 +227,30 @@ restore_sink() {
   [[ -n ${node_id:-} ]] && apply_balance "$sink" || true
 }
 
+# Defensive, not a proven fix. Restarting WirePlumber tears down and re-creates
+# every node in the graph, and Quickshell has been seen to segfault in delegate
+# incubation when the node list moves under it. The kill above is what protects
+# the *running* shell from that; this protects the replacement, which would
+# otherwise start building its device rows while the graph is still settling.
+# Cheap enough (well under a second on a quiet graph) to be worth the doubt.
+wait_for_stable_graph() {
+  local previous="" current stable=0 deadline=$((SECONDS + 5))
+
+  while (( SECONDS < deadline )); do
+    current="$(pactl list short sinks 2>/dev/null; pactl list short sources 2>/dev/null)" || current=""
+    if [[ -n $current && $current == "$previous" ]]; then
+      stable=$(( stable + 1 ))
+      if (( stable >= 3 )); then return 0; fi
+    else
+      stable=0
+    fi
+    previous="$current"
+    sleep 0.2
+  done
+
+  return 0
+}
+
 reload_audio_safely() {
   local sink="$1"
 
@@ -244,6 +268,7 @@ reload_audio_safely() {
 
   systemctl --user restart wireplumber.service
   restore_sink "$sink"
+  wait_for_stable_graph
 }
 
 cleanup() {

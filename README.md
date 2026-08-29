@@ -13,7 +13,8 @@ The name comes from the song *Little Stereo* by the Swedish band Teddybears.
 
 1. **Reverse stereo** — Turn on **Reverse Stereo Channels** when your left and
    right speakers are physically arranged the other way around. It also works
-   with Bluetooth outputs.
+   with Bluetooth outputs. Expect audio to cut out and the bar to disappear for
+   a second or two while the change is applied; see [How it works](#how-it-works).
 2. **Balance** — Move the balance slider toward the audible left or right side.
    The selected master volume stays stable, including when stereo is reversed.
 3. **Memory and status per output** — Little Stereo remembers reversal and
@@ -54,6 +55,13 @@ Settings are saved under `~/.config/omarchy/audio`. Stereo reversal is applied
 with a generated WirePlumber filter rule, upstream of the selected physical or
 Bluetooth output. Balance uses per-channel PipeWire volume while preserving the
 chosen master level.
+
+Reversal is the one setting that cannot be applied in place. WirePlumber only
+reads that filter rule when it starts, so turning reversal on or off restarts
+WirePlumber, which tears down and rebuilds every audio node. The bar is stopped
+first and brought back afterwards, deliberately: a running shell has been seen
+to crash when the audio graph is replaced underneath it. Balance, volume and
+output switching all apply immediately and leave the bar alone.
 
 This project is based on Omarchy's built-in Audio plugin and is distributed
 under the MIT License.
