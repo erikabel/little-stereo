@@ -15,7 +15,14 @@ Panel {
 
   // Keep the processing helper inside the plugin so installation does not
   // depend on a separately copied command in ~/.local/bin.
-  readonly property string helperPath: String(Qt.resolvedUrl("scripts/little-stereo")).replace(/^file:\/\//, "")
+  readonly property string helperPath: {
+    var path = String(Qt.resolvedUrl("scripts/little-stereo")).replace(/^file:\/\//, "")
+    // Decoding fixes an installed path holding spaces or non-ASCII. But
+    // decodeURIComponent throws on a stray '%', and a throwing binding would
+    // leave this empty and every control dead -- so fall back to the raw path,
+    // which is wrong only for the encoded case the decode was there to fix.
+    try { return decodeURIComponent(path) } catch (e) { return path }
+  }
 
   readonly property var sink: Pipewire.defaultAudioSink
   readonly property var source: Pipewire.defaultAudioSource
@@ -142,13 +149,16 @@ Panel {
   // Re-resolve whenever the selected output changes; the timer below is only a
   // safety net for the tuning being applied or removed underneath us.
   onSinkChanged: {
+    // The cached master level belongs to the output we just left; keeping it
+    // would show the old device's number until the helper answers.
+    outputMasterVolume = -1
     resolveVolumeSink()
     refreshChannelSwap()
-    refreshOutputBalance()
+    refreshOutputBalance(true)
   }
 
   function resolveVolumeSink() {
-    if (!volumeSinkProc.running) volumeSinkProc.running = true
+    startForSink(volumeSinkProc)
   }
 
   readonly property real outputVolume: outputMasterVolume >= 0
@@ -157,11 +167,36 @@ Panel {
   readonly property bool outputMuted: volumeSink && volumeSink.audio ? volumeSink.audio.muted : false
   readonly property real inputVolume: source && source.audio ? source.audio.volume : 0
   readonly property bool inputMuted: source && source.audio ? source.audio.muted : false
-  property bool channelsSwapped: false
+  readonly property bool channelsSwapped: outputChannelsSwapped(sink)
   property var swappedOutputs: []
   property real outputBalance: 0
   property real outputMasterVolume: -1
   property int pendingOutputBalance: 0
+  property int pendingOutputLevel: -1
+
+  // Balance only means something across a stereo pair, and the helper cannot
+  // write two values to a mono or surround sink. An unknown channel layout
+  // reads as stereo: a control that still works is a better failure than one
+  // that silently disappears.
+  readonly property int outputChannelCount: volumeSink && volumeSink.audio && volumeSink.audio.channels
+    ? volumeSink.audio.channels.length
+    : 2
+  readonly property bool outputIsStereo: outputChannelCount === 2
+  readonly property string sinkName: sink && sink.name ? String(sink.name) : ""
+
+  // These helpers answer asynchronously. An output switch between starting one
+  // and reading its reply would apply the old output's numbers to the new one,
+  // so every run carries the output it was asked about and stale replies are
+  // dropped. An untagged run (no default sink yet) is allowed through.
+  function resultIsCurrent(forSink) {
+    return forSink === "" || forSink === sinkName
+  }
+
+  function startForSink(proc) {
+    if (proc.running) return
+    proc.forSink = sinkName
+    proc.running = true
+  }
   property var outputBalances: ({})
 
   function outputChannelsSwapped(node) {
@@ -343,6 +378,8 @@ Panel {
   onOpenedChanged: {
     if (opened) {
       refreshDisplayAudioModels()
+      refreshChannelSwap()
+      refreshOutputBalance(true)
       focusSection = "output"
       selectedIndex = -1  // first keyboard cursor reveal starts on the output slider
       cursorActive = false
@@ -461,11 +498,8 @@ Panel {
     var volume = Math.max(0, Math.min(1, v))
     outputMasterVolume = volume
     volumeSink.audio.volume = volume
-    Quickshell.execDetached([
-      root.helperPath,
-      "balance-level",
-      String(Math.round(volume * 100))
-    ])
+    pendingOutputLevel = Math.round(volume * 100)
+    levelApplyTimer.restart()
     return volume
   }
 
@@ -503,10 +537,17 @@ Panel {
     if (!channelSwapStatusProc.running) channelSwapStatusProc.running = true
   }
 
-  function refreshOutputBalance() {
-    if (!balanceStatusProc.running) balanceStatusProc.running = true
-    if (!balanceLevelStatusProc.running) balanceLevelStatusProc.running = true
+  // `restore` additionally re-imposes the remembered balance. The volume keys
+  // flatten it -- omarchy-audio-output-volume writes one value, which pactl
+  // applies to every channel -- and nothing else puts it back. Only restore on
+  // open and on an output change: doing it from the poll would fight a slider
+  // drag, reading the in-flight level and writing it straight back.
+  function refreshOutputBalance(restore) {
+    startForSink(balanceStatusProc)
+    // balance-list is not about one output -- it feeds the per-row badges --
+    // so it needs no tag.
     if (!balanceListProc.running) balanceListProc.running = true
+    startForSink(restore ? balanceRestoreProc : balanceLevelStatusProc)
   }
 
   function setOutputBalance(value) {
@@ -518,7 +559,8 @@ Panel {
   function toggleChannelSwap() {
     root.close()
     Qt.callLater(function() {
-      Quickshell.execDetached([root.helperPath, "toggle"])
+      var target = root.sink && root.sink.name ? [String(root.sink.name)] : []
+      Quickshell.execDetached([root.helperPath, "toggle"].concat(target))
     })
   }
 
@@ -657,10 +699,16 @@ Panel {
 
   Process {
     id: balanceStatusProc
-    command: [root.helperPath, "balance-status"]
+    property string forSink: ""
+    command: [root.helperPath, "balance-status", forSink]
     stdout: StdioCollector {
       waitForEnd: true
-      onStreamFinished: root.outputBalance = Number(String(text).trim() || "0") / 100
+      onStreamFinished: {
+        var raw = String(text).trim()
+        // An empty reply means the helper could not read the output; leaving
+        // the value alone beats overwriting it with a zero.
+        if (raw !== "" && root.resultIsCurrent(balanceStatusProc.forSink)) root.outputBalance = Number(raw) / 100
+      }
     }
   }
 
@@ -685,20 +733,45 @@ Panel {
   }
 
   Process {
-    id: balanceLevelStatusProc
-    command: [root.helperPath, "balance-level-status"]
+    id: balanceRestoreProc
+    property string forSink: ""
+    command: [root.helperPath, "restore", forSink]
     stdout: StdioCollector {
       waitForEnd: true
-      onStreamFinished: root.outputMasterVolume = Number(String(text).trim() || "0") / 100
+      onStreamFinished: {
+        var raw = String(text).trim()
+        // An empty reply means the helper could not read the output; leaving
+        // the value alone beats overwriting it with a zero.
+        if (raw !== "" && root.resultIsCurrent(balanceRestoreProc.forSink)) root.outputMasterVolume = Number(raw) / 100
+      }
+    }
+  }
+
+  Process {
+    id: balanceLevelStatusProc
+    property string forSink: ""
+    command: [root.helperPath, "balance-level-status", forSink]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var raw = String(text).trim()
+        // An empty reply means the helper could not read the output; leaving
+        // the value alone beats overwriting it with a zero.
+        if (raw !== "" && root.resultIsCurrent(balanceLevelStatusProc.forSink)) root.outputMasterVolume = Number(raw) / 100
+      }
     }
   }
 
   Process {
     id: volumeSinkProc
+    property string forSink: ""
+    // Deliberately unargumented: this resolves the *current default*, which is
+    // the definition the volume keys use. Only the reply is tagged.
     command: ["omarchy-audio-output-sink"]
     stdout: StdioCollector {
       waitForEnd: true
-      onStreamFinished: root.volumeSinkName = String(text).trim()
+      onStreamFinished: if (root.resultIsCurrent(volumeSinkProc.forSink))
+        root.volumeSinkName = String(text).trim()
     }
   }
 
@@ -710,15 +783,8 @@ Panel {
       onStreamFinished: {
         var raw = String(text).trim()
         root.swappedOutputs = raw === "" ? [] : raw.split("\n")
-        root.channelsSwapped = root.outputChannelsSwapped(root.sink)
       }
     }
-  }
-
-  Process {
-    id: channelSwapToggleProc
-    command: [root.helperPath, "toggle"]
-    onExited: root.refreshChannelSwap()
   }
 
   Timer {
@@ -733,11 +799,21 @@ Panel {
     interval: 3000
     running: root.opened
     repeat: true
-    triggeredOnStart: true
     onTriggered: {
       root.refreshChannelSwap()
-      root.refreshOutputBalance()
+      root.refreshOutputBalance(false)
     }
+  }
+
+  Timer {
+    id: levelApplyTimer
+    interval: 120
+    repeat: false
+    onTriggered: Quickshell.execDetached([
+      root.helperPath,
+      "balance-level",
+      String(root.pendingOutputLevel)
+    ])
   }
 
   Timer {
@@ -759,7 +835,13 @@ Panel {
     running: true
     repeat: true
     triggeredOnStart: true
-    onTriggered: root.resolveVolumeSink()
+    onTriggered: {
+      root.resolveVolumeSink()
+      // The bar shows and scrolls output volume with the panel closed, and the
+      // volume keys move it without telling us, so the cached level has to be
+      // re-read or the glyph and the wheel's starting point go stale.
+      if (!root.opened) root.startForSink(balanceLevelStatusProc)
+    }
   }
 
   Timer {
@@ -1031,8 +1113,9 @@ Panel {
                 }
 
                 Text {
-                  visible: root.channelsSwapped
-                  text: "Remembered for this output"
+                  visible: root.channelsSwapped || !root.outputIsStereo
+                  text: root.outputIsStereo ? "Remembered for this output"
+                                            : "This output is not stereo"
                   color: Qt.darker(root.bar.foreground, 1.4)
                   font.family: root.bar.fontFamily
                   font.pixelSize: Style.font.caption
@@ -1045,7 +1128,7 @@ Panel {
                 id: channelSwapSwitch
                 checked: root.channelsSwapped
                 foreground: root.bar.foreground
-                enabled: !!root.sink
+                enabled: !!root.sink && root.outputIsStereo
                 anchors.right: parent.right
                 anchors.rightMargin: Style.space(6)
                 anchors.verticalCenter: parent.verticalCenter
@@ -1080,11 +1163,13 @@ Panel {
 
                 Text {
                   id: balanceValue
-                  text: root.outputBalance < -0.01
-                    ? Math.round(-root.outputBalance * 100) + "% left"
-                    : root.outputBalance > 0.01
-                      ? Math.round(root.outputBalance * 100) + "% right"
-                      : "Centered"
+                  text: !root.outputIsStereo
+                    ? "Stereo only"
+                    : root.outputBalance < -0.01
+                      ? Math.round(-root.outputBalance * 100) + "% left"
+                      : root.outputBalance > 0.01
+                        ? Math.round(root.outputBalance * 100) + "% right"
+                        : "Centered"
                   color: Qt.darker(root.bar.foreground, 1.4)
                   font.family: root.bar.fontFamily
                   font.pixelSize: Style.font.caption
@@ -1117,7 +1202,8 @@ Panel {
                   tickCount: 3
                   tickColor: root.bar.foreground
                   value: root.outputBalance
-                  enabled: !!root.sink
+                  enabled: !!root.sink && root.outputIsStereo
+                  opacity: root.outputIsStereo ? 1.0 : 0.5
                   onMoved: function(v) { root.setOutputBalance(v) }
                 }
 
