@@ -9,8 +9,6 @@ The name comes from the song *Little Stereo* by the Swedish band Teddybears.
 
 ## Main functionality
 
-![Little Stereo audio controls](docs/little-stereo-controls.png)
-
 1. **Reverse stereo** — Turn on **Reverse Stereo Channels** when your left and
    right speakers are physically arranged the other way around. It also works
    with Bluetooth outputs. Expect audio to cut out and the bar to disappear for
@@ -24,6 +22,8 @@ The name comes from the song *Little Stereo* by the Swedish band Teddybears.
 
 Select an output to view or change its settings. When you return to that
 device, Little Stereo restores them automatically.
+
+![Little Stereo audio controls](docs/little-stereo-controls.png)
 
 ## Install
 
