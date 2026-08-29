@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.erikabel.little-stereo",
   "name": "Little Stereo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Erik Abelsson",
   "license": "MIT",
   "description": "Stereo reversal, balance, and custom names, remembered for every audio output.",
