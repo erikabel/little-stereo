@@ -7,7 +7,7 @@ again.
 
 Little Stereo is named after the Song Little Stereo by the Swedish band Teddybears!
 
-## What the screenshot shows
+## Main functions
 
 1. **Reverse stereo** — Turn on **Reverse Stereo Channels** when your left and
    right speakers are physically arranged the other way around. It also works
