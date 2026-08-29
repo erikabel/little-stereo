@@ -5,8 +5,6 @@ panel. Each output device keeps its own settings, so switching between
 speakers, headphones, and Bluetooth devices does not require setting them up
 again.
 
-The name comes from the song *Little Stereo* by the Swedish band Teddybears.
-
 Little Stereo is named after the Song Little Stereo by the Swedish band Teddybears!
 
 ![Little Stereo audio controls](docs/little-stereo-controls.png)
